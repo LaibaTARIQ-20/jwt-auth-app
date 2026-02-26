@@ -14,8 +14,11 @@ const app = express();
 app.use(helmet());
 app.use(
   cors({
-    origin: process.env.CLIENT_URL || "http://localhost:3000",
-    credentials: true, // required for cookies
+    origin: [
+      "http://localhost:3000",
+      "https://your-app.vercel.app", // update this after Vercel gives you the URL
+    ],
+    credentials: true,
   }),
 );
 app.use(express.json());
