@@ -16,7 +16,7 @@ app.use(
   cors({
     origin: [
       "http://localhost:3000",
-      "https://your-app.vercel.app", // update this after Vercel gives you the URL
+      "https://jwt-auth-app-pi.vercel.app/", // update this after Vercel gives you the URL
     ],
     credentials: true,
   }),
