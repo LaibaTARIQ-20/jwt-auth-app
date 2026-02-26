@@ -28,21 +28,16 @@ const AuthContext = createContext<AuthContextType | null>(null);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
-  // loading = true until we know if user has a session or not
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const restore = async () => {
       try {
         const data = await refreshSession();
-        if (data) {
-          setUser(data.user);
-        }
+        if (data) setUser(data.user);
       } catch {
-        // No valid session — that's fine, user just needs to log in
         setUser(null);
       } finally {
-        // Always set loading false so dashboard/middleware can proceed
         setLoading(false);
       }
     };
@@ -57,7 +52,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const register = useCallback(
     async (name: string, email: string, password: string) => {
       const data = await registerUser(name, email, password);
-      setUser(data.user);
+      setUser(data.user); // ← make sure user is set immediately
     },
     [],
   );
@@ -74,7 +69,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   );
 };
 
-export const useAuth = (): AuthContextType => {
+export const useAuth = () => {
   const ctx = useContext(AuthContext);
   if (!ctx) throw new Error("useAuth must be used inside <AuthProvider>");
   return ctx;

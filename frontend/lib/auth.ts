@@ -34,7 +34,7 @@ export const registerUser = async (
     email,
     password,
   });
-  setAccessToken(res.data.accessToken);
+  setAccessToken(res.data.accessToken); // ← access token stored in memory
   return res.data;
 };
 
