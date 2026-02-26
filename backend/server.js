@@ -14,10 +14,22 @@ const app = express();
 app.use(helmet());
 app.use(
   cors({
-    origin: [
-      "http://localhost:3000",
-      "https://jwt-auth-app-pi.vercel.app/", // update this after Vercel gives you the URL
-    ],
+    origin: function (origin, callback) {
+      const allowedOrigins = [
+        "http://localhost:3000",
+        "https://jwt-auth-app-pi.vercel.app",
+      ];
+      // Allow any vercel.app subdomain for preview deployments
+      if (
+        !origin ||
+        allowedOrigins.includes(origin) ||
+        origin.endsWith(".vercel.app")
+      ) {
+        callback(null, true);
+      } else {
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
     credentials: true,
   }),
 );
