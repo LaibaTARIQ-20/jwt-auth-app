@@ -1,14 +1,14 @@
-const jwt = require("jsonwebtoken");
+const jwt = require('jsonwebtoken');
 
 const generateAccessToken = (payload) => {
   return jwt.sign(payload, process.env.ACCESS_TOKEN_SECRET, {
-    expiresIn: process.env.ACCESS_TOKEN_EXPIRES_IN || "15m",
+    expiresIn: process.env.ACCESS_TOKEN_EXPIRES_IN || '15m',
   });
 };
 
 const generateRefreshToken = (payload) => {
   return jwt.sign(payload, process.env.REFRESH_TOKEN_SECRET, {
-    expiresIn: process.env.REFRESH_TOKEN_EXPIRES_IN || "7d",
+    expiresIn: process.env.REFRESH_TOKEN_EXPIRES_IN || '7d',
   });
 };
 
@@ -20,12 +20,22 @@ const verifyRefreshToken = (token) => {
   return jwt.verify(token, process.env.REFRESH_TOKEN_SECRET);
 };
 
-const REFRESH_COOKIE_OPTIONS = {
+// Both cookies same options
+const COOKIE_OPTIONS = {
   httpOnly: true,
-  secure: true, // required for sameSite none
-  sameSite: "none", // required for cross-domain
-  maxAge: 7 * 24 * 60 * 60 * 1000,
-  path: "/",
+  secure: true,
+  sameSite: 'none',
+  path: '/',
+};
+
+const ACCESS_COOKIE_OPTIONS = {
+  ...COOKIE_OPTIONS,
+  maxAge: 15 * 60 * 1000, // 15 minutes
+};
+
+const REFRESH_COOKIE_OPTIONS = {
+  ...COOKIE_OPTIONS,
+  maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
 };
 
 module.exports = {
@@ -33,5 +43,6 @@ module.exports = {
   generateRefreshToken,
   verifyAccessToken,
   verifyRefreshToken,
+  ACCESS_COOKIE_OPTIONS,
   REFRESH_COOKIE_OPTIONS,
 };

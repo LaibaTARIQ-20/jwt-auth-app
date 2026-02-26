@@ -1,178 +1,147 @@
-const bcrypt = require("bcryptjs");
-const { users, refreshTokens } = require("./store");
+const bcrypt = require('bcryptjs');
+const { users, refreshTokens } = require('./store');
 const {
   generateAccessToken,
   generateRefreshToken,
   verifyRefreshToken,
+  ACCESS_COOKIE_OPTIONS,
   REFRESH_COOKIE_OPTIONS,
-} = require("../middleware/tokenUtils");
+} = require('../middleware/tokenUtils');
 
-// ─────────────────────────────────────────────────────────────────────────────
-// POST /api/auth/register
-// ─────────────────────────────────────────────────────────────────────────────
+// ── REGISTER ──────────────────────────────────────────
 const register = async (req, res) => {
-  try {
-    const { name, email, password } = req.body;
+  const { name, email, password } = req.body;
 
-    // Validation
-    if (!name || !email || !password) {
-      return res
-        .status(400)
-        .json({ error: "Name, email and password are required" });
-    }
-    if (password.length < 6) {
-      return res
-        .status(400)
-        .json({ error: "Password must be at least 6 characters" });
-    }
-    if (users.has(email)) {
-      return res.status(409).json({ error: "Email already registered" });
-    }
-
-    // Hash password and save user
-    const hashedPassword = await bcrypt.hash(password, 12);
-    const user = {
-      id: Date.now().toString(),
-      name: name.trim(),
-      email: email.toLowerCase().trim(),
-      password: hashedPassword,
-    };
-    users.set(email, user);
-
-    // Generate tokens
-    const tokenPayload = { id: user.id, email: user.email, name: user.name };
-    const accessToken = generateAccessToken(tokenPayload);
-    const refreshToken = generateRefreshToken({
-      id: user.id,
-      email: user.email,
-    });
-
-    refreshTokens.add(refreshToken);
-    res.cookie("refreshToken", refreshToken, REFRESH_COOKIE_OPTIONS);
-
-    res.status(201).json({
-      message: "Account created successfully",
-      accessToken,
-      user: tokenPayload,
-    });
-  } catch (err) {
-    console.error("Register error:", err);
-    res.status(500).json({ error: "Registration failed" });
+  if (!name || !email || !password) {
+    return res.status(400).json({ error: 'All fields are required' });
   }
+
+  if (users.has(email)) {
+    return res.status(409).json({ error: 'Email already registered' });
+  }
+
+  const hashedPassword = await bcrypt.hash(password, 12);
+  const id = Date.now().toString();
+  const user = { id, name, email, hashedPassword };
+  users.set(email, user);
+
+  const payload = { id, name, email };
+  const accessToken = generateAccessToken(payload);
+  const refreshToken = generateRefreshToken(payload);
+
+  refreshTokens.add(refreshToken);
+
+  // Store BOTH tokens in cookies — no need to return accessToken in body
+  res
+    .status(201)
+    .cookie('accessToken', accessToken, ACCESS_COOKIE_OPTIONS)
+    .cookie('refreshToken', refreshToken, REFRESH_COOKIE_OPTIONS)
+    .json({
+      message: 'Account created successfully',
+      user: { id, name, email },
+    });
 };
 
-// ─────────────────────────────────────────────────────────────────────────────
-// POST /api/auth/login
-// ─────────────────────────────────────────────────────────────────────────────
+// ── LOGIN ──────────────────────────────────────────────
 const login = async (req, res) => {
-  try {
-    const { email, password } = req.body;
+  const { email, password } = req.body;
 
-    if (!email || !password) {
-      return res.status(400).json({ error: "Email and password are required" });
-    }
-
-    const user = users.get(email.toLowerCase().trim());
-    if (!user) {
-      return res.status(401).json({ error: "Invalid email or password" });
-    }
-
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
-      return res.status(401).json({ error: "Invalid email or password" });
-    }
-
-    // Generate tokens
-    const tokenPayload = { id: user.id, email: user.email, name: user.name };
-    const accessToken = generateAccessToken(tokenPayload);
-    const refreshToken = generateRefreshToken({
-      id: user.id,
-      email: user.email,
-    });
-
-    refreshTokens.add(refreshToken);
-    res.cookie("refreshToken", refreshToken, REFRESH_COOKIE_OPTIONS);
-
-    res.json({
-      message: "Login successful",
-      accessToken,
-      user: tokenPayload,
-    });
-  } catch (err) {
-    console.error("Login error:", err);
-    res.status(500).json({ error: "Login failed" });
+  if (!email || !password) {
+    return res.status(400).json({ error: 'Email and password are required' });
   }
+
+  const user = users.get(email);
+  if (!user) {
+    return res.status(401).json({ error: 'Invalid email or password' });
+  }
+
+  const match = await bcrypt.compare(password, user.hashedPassword);
+  if (!match) {
+    return res.status(401).json({ error: 'Invalid email or password' });
+  }
+
+  const payload = { id: user.id, name: user.name, email: user.email };
+  const accessToken = generateAccessToken(payload);
+  const refreshToken = generateRefreshToken(payload);
+
+  refreshTokens.add(refreshToken);
+
+  // Store BOTH tokens in cookies
+  res
+    .status(200)
+    .cookie('accessToken', accessToken, ACCESS_COOKIE_OPTIONS)
+    .cookie('refreshToken', refreshToken, REFRESH_COOKIE_OPTIONS)
+    .json({
+      message: 'Logged in successfully',
+      user: { id: user.id, name: user.name, email: user.email },
+    });
 };
 
-// ─────────────────────────────────────────────────────────────────────────────
-// POST /api/auth/refresh
-// Called automatically by the frontend when access token expires
-// ─────────────────────────────────────────────────────────────────────────────
-const refresh = (req, res) => {
+// ── REFRESH ────────────────────────────────────────────
+const refresh = async (req, res) => {
+  const token = req.cookies?.refreshToken;
+
+  if (!token) {
+    return res.status(401).json({ error: 'Unauthorized request' });
+  }
+
+  if (!refreshTokens.has(token)) {
+    return res.status(403).json({ error: 'Invalid refresh token' });
+  }
+
   try {
-    const token = req.cookies.refreshToken;
-
-    if (!token) {
-      return res.status(401).json({ error: "No refresh token provided" });
-    }
-
-    if (!refreshTokens.has(token)) {
-      return res
-        .status(403)
-        .json({ error: "Refresh token is invalid or revoked" });
-    }
-
     const decoded = verifyRefreshToken(token);
-    const user = [...users.values()].find((u) => u.id === decoded.id);
 
-    if (!user) {
-      return res.status(403).json({ error: "User not found" });
-    }
-
-    const tokenPayload = { id: user.id, email: user.email, name: user.name };
-    const newAccessToken = generateAccessToken(tokenPayload);
-
-    // Rotate refresh token (invalidate old, issue new)
+    // Rotate refresh token
     refreshTokens.delete(token);
     const newRefreshToken = generateRefreshToken({
-      id: user.id,
-      email: user.email,
+      id: decoded.id,
+      name: decoded.name,
+      email: decoded.email,
     });
     refreshTokens.add(newRefreshToken);
-    res.cookie("refreshToken", newRefreshToken, REFRESH_COOKIE_OPTIONS);
 
-    res.json({
-      accessToken: newAccessToken,
-      user: tokenPayload,
+    const newAccessToken = generateAccessToken({
+      id: decoded.id,
+      name: decoded.name,
+      email: decoded.email,
     });
-  } catch (err) {
-    // Expired or tampered refresh token — force re-login
-    const token = req.cookies.refreshToken;
-    if (token) refreshTokens.delete(token);
-    res.clearCookie("refreshToken");
-    return res
-      .status(403)
-      .json({ error: "Session expired, please login again" });
+
+    // Set BOTH new tokens in cookies
+    res
+      .status(200)
+      .cookie('accessToken', newAccessToken, ACCESS_COOKIE_OPTIONS)
+      .cookie('refreshToken', newRefreshToken, REFRESH_COOKIE_OPTIONS)
+      .json({
+        message: 'Access token refreshed',
+        user: { id: decoded.id, name: decoded.name, email: decoded.email },
+      });
+  } catch {
+    return res.status(401).json({ error: 'Invalid refresh token' });
   }
 };
 
-// ─────────────────────────────────────────────────────────────────────────────
-// POST /api/auth/logout
-// ─────────────────────────────────────────────────────────────────────────────
-const logout = (req, res) => {
-  const token = req.cookies.refreshToken;
-  if (token) {
-    refreshTokens.delete(token); // revoke the token
-  }
-  res.clearCookie("refreshToken");
-  res.json({ message: "Logged out successfully" });
+// ── LOGOUT ─────────────────────────────────────────────
+const logout = async (req, res) => {
+  const token = req.cookies?.refreshToken;
+  if (token) refreshTokens.delete(token);
+
+  const clearOptions = {
+    httpOnly: true,
+    secure: true,
+    sameSite: 'none',
+    path: '/',
+  };
+
+  res
+    .status(200)
+    .clearCookie('accessToken', clearOptions)
+    .clearCookie('refreshToken', clearOptions)
+    .json({ message: 'Logged out successfully' });
 };
 
-// ─────────────────────────────────────────────────────────────────────────────
-// GET /api/auth/me  (protected route)
-// ─────────────────────────────────────────────────────────────────────────────
-const me = (req, res) => {
-  // req.user is set by the authenticate middleware
+// ── ME (protected route) ───────────────────────────────
+const me = async (req, res) => {
   res.json({ user: req.user });
 };
 

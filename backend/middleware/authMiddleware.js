@@ -1,27 +1,22 @@
-const { verifyAccessToken } = require("./tokenUtils");
+const { verifyAccessToken } = require('./tokenUtils');
 
-/**
- * Protect routes — expects "Authorization: Bearer <accessToken>" header
- */
-const authenticate = (req, res, next) => {
-  const authHeader = req.headers.authorization;
-
-  if (!authHeader || !authHeader.startsWith("Bearer ")) {
-    return res.status(401).json({ error: "Access token required" });
-  }
-
-  const token = authHeader.split(" ")[1];
-
+const protect = (req, res, next) => {
   try {
-    const decoded = verifyAccessToken(token);
-    req.user = decoded; // { id, email, name, iat, exp }
-    next();
-  } catch (err) {
-    if (err.name === "TokenExpiredError") {
-      return res.status(401).json({ error: "Token expired" });
+    // Read from cookie first, then Authorization header
+    const token =
+      req.cookies?.accessToken ||
+      req.headers.authorization?.replace('Bearer ', '');
+
+    if (!token) {
+      return res.status(401).json({ error: 'Unauthorized request' });
     }
-    return res.status(401).json({ error: "Invalid token" });
+
+    const decoded = verifyAccessToken(token);
+    req.user = decoded;
+    next();
+  } catch (error) {
+    return res.status(401).json({ error: 'Invalid access token' });
   }
 };
 
-module.exports = { authenticate };
+module.exports = { protect };

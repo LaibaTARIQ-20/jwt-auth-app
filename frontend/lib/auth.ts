@@ -1,4 +1,4 @@
-import { publicApi, setAccessToken, clearAccessToken } from "./apiClient";
+import { publicApi } from './apiClient';
 
 export interface User {
   id: string;
@@ -7,52 +7,44 @@ export interface User {
 }
 
 export interface AuthResponse {
-  accessToken: string;
   user: User;
   message: string;
 }
 
+// No accessToken in response anymore — it's in the cookie
 export const loginUser = async (
   email: string,
-  password: string,
+  password: string
 ): Promise<AuthResponse> => {
-  const res = await publicApi.post<AuthResponse>("/auth/login", {
+  const res = await publicApi.post<AuthResponse>('/auth/login', {
     email,
     password,
   });
-  setAccessToken(res.data.accessToken);
   return res.data;
 };
 
 export const registerUser = async (
   name: string,
   email: string,
-  password: string,
+  password: string
 ): Promise<AuthResponse> => {
-  const res = await publicApi.post<AuthResponse>("/auth/register", {
+  const res = await publicApi.post<AuthResponse>('/auth/register', {
     name,
     email,
     password,
   });
-  setAccessToken(res.data.accessToken); // ← access token stored in memory
   return res.data;
 };
 
 export const logoutUser = async (): Promise<void> => {
-  try {
-    await publicApi.post("/auth/logout");
-  } finally {
-    clearAccessToken();
-  }
+  await publicApi.post('/auth/logout');
 };
 
 export const refreshSession = async (): Promise<AuthResponse | null> => {
   try {
-    const res = await publicApi.post<AuthResponse>("/auth/refresh");
-    setAccessToken(res.data.accessToken);
+    const res = await publicApi.post<AuthResponse>('/auth/refresh');
     return res.data;
   } catch {
-    clearAccessToken();
     return null;
   }
 };

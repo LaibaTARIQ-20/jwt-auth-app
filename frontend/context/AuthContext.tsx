@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 import React, {
   createContext,
@@ -7,14 +7,8 @@ import React, {
   useState,
   useCallback,
   ReactNode,
-} from "react";
-import {
-  loginUser,
-  registerUser,
-  logoutUser,
-  refreshSession,
-  User,
-} from "../lib/auth";
+} from 'react';
+import { loginUser, registerUser, logoutUser, refreshSession, User } from '../lib/auth';
 
 interface AuthContextType {
   user: User | null;
@@ -31,6 +25,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // On page load — check if accessToken cookie exists
+    // If expired — refresh endpoint issues new one automatically
     const restore = async () => {
       try {
         const data = await refreshSession();
@@ -52,9 +48,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const register = useCallback(
     async (name: string, email: string, password: string) => {
       const data = await registerUser(name, email, password);
-      setUser(data.user); // ← make sure user is set immediately
+      setUser(data.user);
     },
-    [],
+    []
   );
 
   const logout = useCallback(async () => {
@@ -71,6 +67,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
 export const useAuth = () => {
   const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error("useAuth must be used inside <AuthProvider>");
+  if (!ctx) throw new Error('useAuth must be used inside <AuthProvider>');
   return ctx;
 };
