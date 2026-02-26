@@ -20,16 +20,11 @@ export default function RegisterPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-
-    if (password.length < 6) {
-      setError("Password must be at least 6 characters");
-      return;
-    }
-
     setLoading(true);
     try {
       await register(name, email, password);
-      router.push("/dashboard");
+      // Force hard navigation instead of router.push
+      window.location.href = "/dashboard";
     } catch (err: any) {
       setError(
         err.response?.data?.error || "Registration failed. Please try again.",

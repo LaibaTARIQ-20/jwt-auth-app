@@ -20,17 +20,15 @@ export default function SignInPage() {
     e.preventDefault();
     setError("");
     setLoading(true);
-
     try {
       await login(email, password);
-      router.push("/dashboard");
+      window.location.href = "/dashboard";
     } catch (err: any) {
-      setError(err.response?.data?.error || "Login failed. Please try again.");
+      setError(err.response?.data?.error || "Invalid email or password.");
     } finally {
       setLoading(false);
     }
   };
-
   return (
     <AuthShell
       title="Welcome back"
