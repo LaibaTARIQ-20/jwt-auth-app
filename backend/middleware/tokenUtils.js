@@ -32,7 +32,7 @@ const verifyRefreshToken = (token) => {
 const REFRESH_COOKIE_OPTIONS = {
   httpOnly: true,
   secure: true,
-  sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
+  sameSite: "none",
   maxAge: 7 * 24 * 60 * 60 * 1000,
   path: "/",
 };
