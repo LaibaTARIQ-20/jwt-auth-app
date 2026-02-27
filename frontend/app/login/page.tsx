@@ -22,7 +22,7 @@ export default function SignInPage() {
     setLoading(true);
     try {
       await login(email, password);
-      window.location.href = "/dashboard";
+      router.push('/dashboard');
     } catch (err: any) {
       setError(err.response?.data?.error || "Invalid email or password.");
     } finally {

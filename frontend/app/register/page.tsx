@@ -24,7 +24,7 @@ export default function RegisterPage() {
     try {
       await register(name, email, password);
       // Force hard navigation instead of router.push
-      window.location.href = "/dashboard";
+      router.push('/dashboard');
     } catch (err: any) {
       setError(
         err.response?.data?.error || "Registration failed. Please try again.",
