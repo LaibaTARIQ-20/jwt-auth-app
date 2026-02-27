@@ -37,12 +37,15 @@ app.use(express.json());
 app.use(cookieParser());
 
 // ─── Rate Limiting ─────────────────────────────────────────────────────────
-const limiter = rateLimit({
+const rateLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100,
-  message: { error: "Too many requests, please try again later." },
+  max: 100,                  // increase from current limit
+  message: { error: 'Too many requests, please try again later.' },
+  skip: (req) => {
+    // Don't rate limit refresh endpoint
+    return req.path === '/api/auth/refresh';
+  }
 });
-app.use("/api/", limiter);
 
 // ─── Routes ────────────────────────────────────────────────────────────────
 app.use("/api/auth", authRoutes);
